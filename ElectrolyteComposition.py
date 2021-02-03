@@ -164,7 +164,7 @@ class AEM_API:
         self.run_yet = False
         self.data_processed=False
         self.aem_exe_filename="aem-2202.exe"
-        self.report_string="Report1"
+        self.report_string="Report1 -- Summary of Key Properties"
         self.tmin=20
         self.tmax=60
     def generate_cues(self):
@@ -262,16 +262,15 @@ class AEM_API:
         #process values to pandas dataframe
         def data_lines_to_dataframe(list_of_lines,columns):
             return pd.DataFrame(list_of_lists,columns=columns)
-
         columns = ["m2","c2","wt fr salt(2)","density (g/cc)","visc. (cP)","sig1 (eff)","sig2 (eff)","S(+)",
-                    "Rational Act.Coef. y+-","Diff. Coeff. cm^2/s","Spec. Cond. (mS/cm)","t+",
+                    "Rational Act.Coef. y+-","Diff. Coeff. cm^2/s","Spec. Cond. (mS/cm)","t+(a)","t+(b)",
                     "dissoc (SI)","dissoc (TI)"]
 
         #cleaned = {get_temp_from_string(k):[s.strip for s in v] for k,v in d.items()}
-        if len(self.salts)==1:
-            self.data = {get_keys_single(k):pd.DataFrame(find_data_in_txt(v),columns=columns) for k,v in d.items()}
-        elif len(self.salts)==2:
-            self.data = {get_keys_binary(k):pd.DataFrame(find_data_in_txt(v),columns=columns) for k,v in d.items()}
+        if len(self.electrolyte.salts)==1:
+            self.data = {get_key_single(k):pd.DataFrame(find_data_in_txt(v),columns=columns) for k,v in d.items()}
+        elif len(self.electrolyte.salts)==2:
+            self.data = {get_key_binary(k):pd.DataFrame(find_data_in_txt(v),columns=columns) for k,v in d.items()}
         self.data_processed=True
 
 
