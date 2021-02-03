@@ -209,5 +209,69 @@ class AEM_API:
         p = sp.Popen(self.aem_exe_filename,stdin=sp.PIPE)
         p.communicate(inpb)
         self.run_yet=True
+        
+    def process(self):
+        if self.run_yet==False:
+            raise ValueError("Run AEM first for this Electrolyte object")
+        f = open(self.report_string,'r')
+        lines = f.readlines()
+        d={}
+        for num1,line in enumerate(lines):
+            if "Results" in line:
+                num2 = num1 + 1
+                arr = []
+                reading = True
+                while(reading==True):
+                    if "TI Stability" in lines[num2]:
+                        reading = False
+                    else:
+                        arr.append(lines[num2])
+                        num2 += 1
+                d[line] = arr
+
+        #process keys down to temperature
+        def get_key_single(string):
+            string_in_list = string.strip().split()
+            return float(string_in_list[string_in_list.index('Temp.')+2]) #TEMP ONLY
+
+        def get_key_binary(string):
+            k = string.strip().split()
+            i=k.index("+")
+            t=(k[i-1],k[i+2],float(k[i-2]),float(k[i+1])) #(salt1,salt2,frac1,frac2)
+            T=float(k[k.index('Temp.')+2])
+            return t+(T,) #(salt1,salt2,frac1,frac2,Temp)
+
+
+        def find_data_in_txt(list_of_lines):
+            expr = '\-{75,}'
+            p = re.compile(expr)
+            table_indices=[]
+            for ind,line in enumerate(list_of_lines):
+                if p.match(line.strip()):
+                    table_indices.append(ind)
+            string_data = list_of_lines[table_indices[0]+1:table_indices[1]]
+            #print(string_data)
+            def floator(val):
+                try:
+                    x=float(val)
+                except ValueError:
+                    x='>10000'
+                return x
+            return [[floator(val) for val in line.strip().split()] for line in string_data]
+
+        #process values to pandas dataframe
+        def data_lines_to_dataframe(list_of_lines,columns):
+            return pd.DataFrame(list_of_lists,columns=columns)
+
+        columns = ["m2","c2","wt fr salt(2)","density (g/cc)","visc. (cP)","sig1 (eff)","sig2 (eff)","S(+)",
+                    "Rational Act.Coef. y+-","Diff. Coeff. cm^2/s","Spec. Cond. (mS/cm)","t+",
+                    "dissoc (SI)","dissoc (TI)"]
+
+        #cleaned = {get_temp_from_string(k):[s.strip for s in v] for k,v in d.items()}
+        if len(self.salts)==1:
+            self.data = {get_keys_single(k):pd.DataFrame(find_data_in_txt(v),columns=columns) for k,v in d.items()}
+        elif len(self.salts)==2:
+            self.data = {get_keys_binary(k):pd.DataFrame(find_data_in_txt(v),columns=columns) for k,v in d.items()}
+        self.data_processed=True
 
 
