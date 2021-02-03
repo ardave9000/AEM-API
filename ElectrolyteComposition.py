@@ -196,6 +196,7 @@ class AEM_API:
         cues.append(0) #Surface-charge attenuated Electrolyte Permittivity
         cues.append(0) #Double layer calc
         cues.append(0) #end calculations
+        #cues.append(0)
         self.cues = cues
     def runAEM(self):
         if self.cues == False:
