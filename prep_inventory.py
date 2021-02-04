@@ -28,6 +28,7 @@ from ElectrolyteComposition import ElectrolyteComposition, AEM_API
 
 args = parser.parse_args()
 specs=json.load(args.json_filename)
+salt_m=specs["salts"][list(specs["salts"].keys())[0]]
 if specs["method"]=="by_mass_fraction_and_molality":
 	el=ElectrolyteComposition.by_mass_fraction_and_molality(solvents=specs["solvents"],salts=specs["salts"])
 else:
@@ -39,8 +40,10 @@ print("Querying AEM for {}".format(el.CompositionID))
 aem.runAEM()
 aem.process()
 
+if salt_m==0: #grab the lowest value here
+	salt_m=0.025
+
 default_volume=60000
-salt_m=specs["salts"][list(specs["salts"].keys())[0]]
 inventory_temp=20
 aem_df_all=aem.data[inventory_temp]
 aem_df=aem_df_all[aem_df_all.m==salt_m]
@@ -72,7 +75,7 @@ for valve in args.valve_list:
     record["salt_info"]=infos["salts"]
     records.append(record)
 
-std_fn="output_inv.csv"
+std_fn="prep_inventory_output.csv"
 if os.path.exists(std_fn):
 	curr_df=pd.read_csv(std_fn)
 	df=pd.concat([curr_df,pd.DataFrame(records)])

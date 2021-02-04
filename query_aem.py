@@ -54,7 +54,7 @@ if args.output_filename:
 	if out_fn[-4:]!=".csv":
 		out_fn=out_fn+".csv"
 else:
-	out_fn="output.csv"
+	out_fn="query_aem_output.csv"
 
 if args.temperature:
 	df=aem.data[args.temperature[0]]
