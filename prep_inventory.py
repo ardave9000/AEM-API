@@ -24,7 +24,7 @@ parser.add_argument('--name', type=str, nargs=1,dest="electrolyte_name",required
 					help="Name of electrolyte in inventory",metavar="STR")
 
 #PROCESS
-from ElectrolyteComposition import ElectrolyteComposition
+from ElectrolyteComposition import ElectrolyteComposition, AEM_API
 
 # make CID
 # get info from solventDB, salt DB
