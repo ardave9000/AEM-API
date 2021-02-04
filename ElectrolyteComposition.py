@@ -28,6 +28,8 @@ class ElectrolyteComposition:
         self.CompositionID="" if CompositionID==None else CompositionID
         #Get date of composition made
         self.date=datetime.datetime.now().strftime("%m-%d-%Y")
+        if len(salts)>1:
+            raise NotImplementedError("Binary salts not implemented, contact Ady")
         #Dump solvent and salt DBs as JSON strings - solvent_DB.to_json(orient="records")
         #Dump solvent and salt compositions as JSON strings - data_str = json.dumps(data)
     @staticmethod
@@ -167,6 +169,7 @@ class AEM_API:
         self.report_string="Report1 -- Summary of Key Properties"
         self.tmin=20
         self.tmax=60
+        self.salt_offset=0.1 #for ensuring equality in salt molality comparison
     def generate_cues(self):
         cues = []
         cues.append(1) #single fixed composition
@@ -185,7 +188,7 @@ class AEM_API:
             cues.append(self.AEM_salts[salt][0]) #append cues
         if number_of_salts>1: cues.append(1) #specify single fixed salt prop
         for salt in self.electrolyte.salts:
-            cues.append(self.electrolyte.salts[salt]) #append molalities
+            cues.append(self.electrolyte.salts[salt]+self.salt_offset) #append molalities
         cues.append(self.tmin)
         cues.append(self.tmax)
         cues.append(10) #select 10 degree step-size
