@@ -41,14 +41,18 @@ aem.runAEM()
 aem.process()
 
 if salt_m==0: #grab the lowest value here
-	salt_m=0.025
+	aem_salt_m=0.025
+else:
+	aem_salt_m=salt_m
 
 default_volume=60000
 inventory_temp=20
 aem_df_all=aem.data[inventory_temp]
-aem_df=aem_df_all[aem_df_all.m==salt_m]
+aem_df=aem_df_all[aem_df_all.m==aem_salt_m]
 print("Returned {} lines, {} columns from AEM".format(len(aem_df),len(aem_df.columns)))
 
+if salt_m==0:
+	el=ElectrolyteComposition.by_mass_fraction_and_molality(solvents=specs["solvents"],salts={})
 #        columns = ["m2",density (g/cc)","visc. (cP)","Spec. Cond. (mS/cm)",...]
 aem_visc=float(aem_df["cP_mean"])
 aem_density=float(aem_df["density (g/mL)"])
