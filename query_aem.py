@@ -34,7 +34,7 @@ specs=json.load(args.json_filename)
 assert len(specs["salts"])>0, "Must supply salt in electrolyte to query AEM"
 
 if args.temperature:
-	assert args.temperature<=60 and args.temperature>=20,"Temperature selected must be between 20, 60"
+	assert args.temperature[0]<=60 and args.temperature[0]>=20,"Temperature selected must be between 20, 60"
 
 if specs["method"]=="by_mass_fraction_and_molality":
 	el=ElectrolyteComposition.by_mass_fraction_and_molality(solvents=specs["solvents"],salts=specs["salts"])
@@ -60,7 +60,8 @@ if args.temperature:
 	df=aem.data[args.temperature[0]]
 
 else:
-	df_concat=pd.concat(aem.data[20],aem.data[30])
+	print("Queried at 25C (averaged readings at 20C and 30C)")
+	df_concat=pd.concat([aem.data[20],aem.data[30]])
 	by_row_index = df_concat.groupby(df_concat.index)
 	df = by_row_index.mean()
 

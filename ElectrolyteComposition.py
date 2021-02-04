@@ -198,7 +198,7 @@ class AEM_API:
         cues.append(0) #end calculations
         #cues.append(0)
         self.cues = cues
-    def runAEM(self):
+    def runAEM(self,quiet=True):
         if self.cues == False:
             raise ValueError("cues not populated, run generate_cues first")
         #generate input byte string
@@ -206,7 +206,11 @@ class AEM_API:
         inpb = bytes('\n'.join(inp)+'\n',encoding="ascii")
     
         #launch AEM and pass input byte string
-        p = sp.Popen(self.aem_exe_filename,stdin=sp.PIPE)
+        if quiet:
+            out=sp.DEVNULL
+        else:
+            out=sp.STDOUT
+        p = sp.Popen(self.aem_exe_filename,stdin=sp.PIPE,stdout=out,stderr=sp.STDOUT)
         p.communicate(inpb)
         self.run_yet=True
         
