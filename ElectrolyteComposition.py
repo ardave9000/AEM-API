@@ -278,8 +278,8 @@ class AEM_API:
         #process values to pandas dataframe
         def data_lines_to_dataframe(list_of_lines,columns):
             return pd.DataFrame(list_of_lists,columns=columns)
-        columns = ["m2","c2","wt fr salt(2)","density (g/cc)","visc. (cP)","sig1 (eff)","sig2 (eff)","S(+)",
-                    "Rational Act.Coef. y+-","Diff. Coeff. cm^2/s","Spec. Cond. (mS/cm)","t+(a)","t+(b)",
+        columns = ["m","c","wt fr salt","density (g/mL)","cP_mean","sig1 (eff)","sig2 (eff)","S(+)",
+                    "Rational Act.Coef. y+-","Diff. Coeff. cm^2/s","Cond (mS) 2","t+(a)","t+(b)",
                     "dissoc (SI)","dissoc (TI)"]
 
         #cleaned = {get_temp_from_string(k):[s.strip for s in v] for k,v in d.items()}

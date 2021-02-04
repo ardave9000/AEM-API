@@ -43,12 +43,12 @@ default_volume=60000
 salt_m=specs["salts"][list(specs["salts"].keys())[0]]
 inventory_temp=20
 aem_df_all=aem.data[inventory_temp]
-aem_df=aem_df_all[aem_df_all.m2==salt_m]
+aem_df=aem_df_all[aem_df_all.m==salt_m]
 print("Returned {} lines, {} columns from AEM".format(len(aem_df),len(aem_df.columns)))
 
 #        columns = ["m2",density (g/cc)","visc. (cP)","Spec. Cond. (mS/cm)",...]
-aem_visc=float(aem_df["visc. (cP)"])
-aem_density=float(aem_df["density (g/cc)"])
+aem_visc=float(aem_df["cP_mean"])
+aem_density=float(aem_df["density (g/mL)"])
 name=el.CompositionID
 
 #name, valve, serial, solventDB_json, saltDB_json, date_created, density, viscosity
