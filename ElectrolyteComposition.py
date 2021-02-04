@@ -27,9 +27,18 @@ class ElectrolyteComposition:
         self.salt_DB=self.load_salt_DB() if salt_DB==None else salt_DB
         self.CompositionID="" if CompositionID==None else CompositionID
         #Get date of composition made
-        self.date=datetime.datetime.now().strftime("%m-%d-%Y")
+        self.date=datetime.datetime.now().strftime("%m/%d/%Y")
         if len(salts)>1:
-            raise NotImplementedError("Binary salts not implemented, contact Ady")
+            raise NotImplementedError("Binary salts not implemented, yet - Ady")
+
+    def dump_info(self):
+        solvent_DB=self.solvent_DB
+        salt_DB=self.salt_DB
+        filt_solvent_info=solvent_DB[solvent_DB.name.isin(self.solvents.keys())].to_json(orient="records")
+        filt_salt_info=salt_DB[salt_DB.name.isin(self.salts.keys())].to_json(orient="records")
+        #r_d={"chemicals":{"solvents":filt_solvent_info,"salts":filt_salt_info}}
+        return {"solvents":filt_solvent_info,"salts":filt_salt_info}
+
         #Dump solvent and salt DBs as JSON strings - solvent_DB.to_json(orient="records")
         #Dump solvent and salt compositions as JSON strings - data_str = json.dumps(data)
     @staticmethod

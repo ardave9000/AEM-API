@@ -66,6 +66,10 @@ for valve in args.valve_list:
     record["rpm_derate"]=(aem_visc*1.7*-3.5+350)/350
     record["density (g/mL)"]=aem_density
     record["viscosity (cP)"]=aem_visc
+    record["date_made"]=el.date
+    infos=el.dump_info()
+    record["solvent_info"]=infos["solvents"]
+    record["salt_info"]=infos["salts"]
     records.append(record)
 
 std_fn="output_inv.csv"

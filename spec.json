@@ -1,1 +1,1 @@
-{"method":"by_mass_fraction_and_molality","solvents": {"EC": 0.3, "EMC": 0.7}, "salts": {"LiPF6": 2}}
+{"method":"by_mass_fraction_and_molality","solvents": {"EC": 0.3, "DMC": 0.7}, "salts": {"LiPF6": 2}}
