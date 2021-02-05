@@ -65,7 +65,7 @@ name=el.CompositionID
 records=[]
 for valve in args.valve_list:
     record={}
-    record["chemical"]=name
+    record["chemical"]=el.name_composition()
     record["concentration"]=salt_m
     record["volume"]=default_volume
     record["valve"]=valve

@@ -6,6 +6,7 @@ from collections import OrderedDict
 import pdb
 import datetime
 import json
+import os
 
 delim1="|"
 delim2="_"
@@ -38,9 +39,10 @@ class ElectrolyteComposition:
         filt_salt_info=salt_DB[salt_DB.name.isin(self.salts.keys())].to_json(orient="records")
         #r_d={"chemicals":{"solvents":filt_solvent_info,"salts":filt_salt_info}}
         return {"solvents":filt_solvent_info,"salts":filt_salt_info}
+    def name_composition(self):
+        rep=self.CompositionID.replace("_","")
+        return rep.replace("|","")
 
-        #Dump solvent and salt DBs as JSON strings - solvent_DB.to_json(orient="records")
-        #Dump solvent and salt compositions as JSON strings - data_str = json.dumps(data)
     @staticmethod
     def normalize_solvent_dictionary(solvents):
         total=float(sum(solvents.values()))
@@ -55,11 +57,13 @@ class ElectrolyteComposition:
         ordered_salts=OrderedDict(sorted(_salts.items(), key=lambda tup: tup[0]))
         return ordered_salts
     @staticmethod
-    def load_solvent_DB(data_path="./data/",filename="solventDB.csv"):
-        return pd.read_csv(data_path+filename)
+    def load_solvent_DB(data_path=os.path.dirname(os.path.realpath(__file__)),filename="data/solventDB.csv"):
+        path=os.path.join(os.path.dirname(os.path.realpath(__file__)),filename)
+        return pd.read_csv(path)
     @staticmethod
-    def load_salt_DB(data_path="./data/",filename="saltDB.csv"):
-        return pd.read_csv(data_path+filename)
+    def load_salt_DB(data_path=os.path.dirname(os.path.realpath(__file__)),filename="data/saltDB.csv"):
+        path=os.path.join(os.path.dirname(os.path.realpath(__file__)),filename)
+        return pd.read_csv(path)
     @staticmethod
     def dicts_to_CompositionID(solvents={},salts={}):
         #Filter
@@ -87,7 +91,6 @@ class ElectrolyteComposition:
         else:
             salts={}
         return {"solvents":solvents,"salts":salts}
-
     @classmethod
     def by_CompositionID(cls, CompositionID):
         dicts=cls.CompositionID_to_dicts(CompositionID)
