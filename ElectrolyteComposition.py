@@ -43,6 +43,11 @@ class ElectrolyteComposition:
         rep=self.CompositionID.replace("_","")
         return rep.replace("|","")
 
+
+    @staticmethod
+    def cid_to_parsable(cid):
+        rep=cid.replace("_","")
+        return rep.replace("|","")
     @staticmethod
     def normalize_solvent_dictionary(solvents):
         total=float(sum(solvents.values()))
@@ -129,7 +134,9 @@ class ElectrolyteComposition:
                     mm=float(salt_DB[salt_DB.name==salt]["molar mass"].iloc[0])
                     m=solution_comp["salts"][salt]
                     mm_i_m_i += mm*m
+            #print(mm_i_m_i)
             solution_total_solvent_mass=total_mass[solution]/(1+mm_i_m_i/1000)
+            #print(solution_total_solvent_mass)
             for solvent in solution_comp["solvents"].keys():
                 if solvent not in solvents_mass:
                     solvents_mass[solvent]=solution_total_solvent_mass*solution_comp["solvents"][solvent]/100
@@ -143,6 +150,9 @@ class ElectrolyteComposition:
                     else:
                         salts_moles[salt]+=m*solution_total_solvent_mass/1000
         total_solvent_mass=sum(solvents_mass.values())
+        #print(total_mass)
+        #print(solvents_mass)
+        #print(salts_moles)
         solvents=cls.normalize_solvent_dictionary(solvents_mass)
         salts=cls.normalize_salt_dictionary({salt:salts_moles[salt]/total_solvent_mass*1000 for salt in salts_moles})
         cid=cls.dicts_to_CompositionID(solvents=solvents,salts=salts)
