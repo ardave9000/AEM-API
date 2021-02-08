@@ -94,12 +94,11 @@ class ElectrolyteComposition:
         solvent_precision=int(10**int(solvent_mfs_precisions[0]))
         solvent_mfs=[float(i) for i in solvent_mfs]
         solvents=ElectrolyteComposition.normalize_solvent_dictionary({solvent_names[i]:solvent_mfs[i] for i in range(len(solvent_names))},solvent_precision)
-
+        salt_decimals=default_salt_decimals #temporary!
         if len(ls)>2:
             assert len(ls)==4, "If salts are added, must define molality"
             salt_names=ls[2].split(delim2)
             molality=[float(i) for i in ls[3].split(delim2)]
-            salt_decimals=default_salt_decimals #temporary!
             assert len(salt_names)==len(molality), "CompositionID is invalid, different lengths for salt_names vs molality"
             salts=ElectrolyteComposition.normalize_salt_dictionary({salt_names[i]:molality[i] for i in range(len(salt_names))},salt_decimals)
         else:
