@@ -10,8 +10,8 @@ import os
 
 delim1="|"
 delim2="_"
-salt_decimal=2
-solvent_prec=100
+default_salt_decimals=2
+default_solvent_precision=100
 vals2str = lambda ls : [str(x) for x in ls]
 
 class ElectrolyteComposition:
@@ -20,18 +20,20 @@ class ElectrolyteComposition:
     #     * Calculate molality, calculate mole fractions
     #     * Given bottle concentrations + densities, give volume fractions
     #     * init from JSON specifier
-    def __init__(self,solvents=None,salts=None,specified_from=None,solvent_DB=None,salt_DB=None,CompositionID=None,interactive=False):
+    def __init__(self,solvents=None,salts=None,specified_from=None,solvent_DB=None,salt_DB=None,CompositionID=None,
+                solvent_precision=default_solvent_precision, salt_decimals=default_salt_decimals):
         self.solvents=dict() if solvents==None else solvents
         self.salts=dict() if salts==None else salts
         self.specified_from="" if specified_from==None else specified_from #will contain info from classmethod used to create
         self.solvent_DB=self.load_solvent_DB() if solvent_DB==None else solvent_DB
         self.salt_DB=self.load_salt_DB() if salt_DB==None else salt_DB
         self.CompositionID="" if CompositionID==None else CompositionID
+        self.solvent_precision=solvent_precision
+        self.salt_decimals=salt_decimals
         #Get date of composition made
         self.date=datetime.datetime.now().strftime("%m/%d/%Y")
         if len(salts)>1:
             raise NotImplementedError("Binary salts not implemented, yet - Ady")
-
     def dump_info(self):
         solvent_DB=self.solvent_DB
         salt_DB=self.salt_DB
@@ -44,14 +46,15 @@ class ElectrolyteComposition:
         return rep.replace("|","")
 
     @staticmethod
-    def normalize_solvent_dictionary(solvents):
+    def normalize_solvent_dictionary(solvents,solvent_precision):
+        #pdb.set_trace()
         total=float(sum(solvents.values()))
-        _solvents={solvent:int(round(solvents[solvent]/total*solvent_prec)) for i,solvent in enumerate(solvents.keys())}#round
+        _solvents={solvent:int(round(solvents[solvent]/total*solvent_precision)) for i,solvent in enumerate(solvents.keys())}#round
         _solvents_nonzero={solvent:_solvents[solvent] for solvent in _solvents.keys() if _solvents[solvent]!=0}#filter
         ordered_solvents=OrderedDict(sorted(_solvents_nonzero.items(), key=lambda tup: tup[0]))
         return ordered_solvents
     @staticmethod
-    def normalize_salt_dictionary(salts):
+    def normalize_salt_dictionary(salts,salt_decimal):
         _salts={salt:round(salts[salt],salt_decimal) for salt in salts.keys()} #round
         _salts_nonzero={salt:_salts[salt] for salt in _salts.keys() if _salts[salt]!=0.0} #filter
         ordered_salts=OrderedDict(sorted(_salts.items(), key=lambda tup: tup[0]))
@@ -65,11 +68,11 @@ class ElectrolyteComposition:
         path=os.path.join(os.path.dirname(os.path.realpath(__file__)),filename)
         return pd.read_csv(path)
     @staticmethod
-    def dicts_to_CompositionID(solvents={},salts={}):
+    def dicts_to_CompositionID(solvents={},salts={},solvent_precision=default_solvent_precision,salt_decimals=default_salt_decimals):
         #Filter
-        solvents_normalized=ElectrolyteComposition.normalize_solvent_dictionary(solvents)
+        solvents_normalized=ElectrolyteComposition.normalize_solvent_dictionary(solvents,solvent_precision)
         if len(salts)!=0:
-            salts_normalized=ElectrolyteComposition.normalize_salt_dictionary(salts)
+            salts_normalized=ElectrolyteComposition.normalize_salt_dictionary(salts,salt_decimals)
             return delim1.join([delim2.join(x) for x in [solvents_normalized.keys(),vals2str(solvents_normalized.values()),salts_normalized.keys(),vals2str(salts_normalized.values())]])
         else:
             return delim1.join([delim2.join(x) for x in [solvents_normalized.keys(),vals2str(solvents_normalized.values())]])
@@ -77,40 +80,47 @@ class ElectrolyteComposition:
     def CompositionID_to_dicts(CompositionID):
         ls=CompositionID.split(delim1)
         solvent_names=ls[0].split(delim2)
-        solvent_mfs=[float(i) for i in ls[1].split(delim2)] #normalize?
+        solvent_mfs=[i for i in ls[1].split(delim2)] #normalize?
         assert len(solvent_names)==len(solvent_mfs), "CompositionID is invalid, different lengths for solvent_names vs solvent_mfs"
         assert 0 not in solvent_mfs, "Zeros not allowed in defining composition" #still caught by normalizing
-        solvents=ElectrolyteComposition.normalize_solvent_dictionary({solvent_names[i]:solvent_mfs[i] for i in range(len(solvent_names))})
+        solvent_mfs_precisions=list(set([len(i) for i in solvent_mfs]))
+        assert len(solvent_mfs_precisions)==1, "Length (precision) of solvent mass fractions must be identical: {}".format(solvent_mfs_precisions)
+        #pdb.set_trace()
+        solvent_precision=int(10**int(solvent_mfs_precisions[0]))
+        solvent_mfs=[float(i) for i in solvent_mfs]
+        solvents=ElectrolyteComposition.normalize_solvent_dictionary({solvent_names[i]:solvent_mfs[i] for i in range(len(solvent_names))},solvent_precision)
 
         if len(ls)>2:
             assert len(ls)==4, "If salts are added, must define molality"
             salt_names=ls[2].split(delim2)
             molality=[float(i) for i in ls[3].split(delim2)]
+            salt_decimals=default_salt_decimals #temporary!
             assert len(salt_names)==len(molality), "CompositionID is invalid, different lengths for salt_names vs molality"
-            salts=ElectrolyteComposition.normalize_salt_dictionary({salt_names[i]:molality[i] for i in range(len(salt_names))})
+            salts=ElectrolyteComposition.normalize_salt_dictionary({salt_names[i]:molality[i] for i in range(len(salt_names))},salt_decimals)
         else:
             salts={}
-        return {"solvents":solvents,"salts":salts}
+        return {"solvents":solvents,"salts":salts,"solvent_precision":solvent_precision,"salt_decimals":salt_decimals}
     @classmethod
     def by_CompositionID(cls, CompositionID):
         dicts=cls.CompositionID_to_dicts(CompositionID)
-        return cls(solvents=dicts["solvents"],salts=dicts["salts"],CompositionID=CompositionID,specified_from=json.dumps({"CompositionID":CompositionID}))
+        return cls(**dicts,CompositionID=CompositionID,specified_from=json.dumps({"CompositionID":CompositionID}))
     @classmethod
     def by_mass(cls,solvents={},salts={}): #solvent mass, salt mass
         raise NotImplementedError
     @classmethod
-    def by_mass_fraction_and_molality(cls,solvents={},salts={}): #solvent mass fraction, salt molality
+    def by_mass_fraction_and_molality(cls,solvents={},salts={},solvent_precision=default_solvent_precision,salt_decimals=default_salt_decimals): #solvent mass fraction, salt molality
         solvents_orig=solvents.copy()
         salts_orig=salts.copy()
-        solvents_normalized=cls.normalize_solvent_dictionary(solvents)
+        solvents_normalized=cls.normalize_solvent_dictionary(solvents,solvent_precision)
         if len(salts)!=0:
-            salts_normalized=cls.normalize_salt_dictionary(salts)
+            salts_normalized=cls.normalize_salt_dictionary(salts,salt_decimals)
         else:
             salts_normalized=salts
-        cid=cls.dicts_to_CompositionID(solvents=solvents_normalized,salts=salts_normalized)
-        return cls(solvents=solvents_normalized,salts=salts_normalized,CompositionID=cid,specified_from=json.dumps({"by_mass_fraction_and_molality":{"solvents":solvents_orig,"salts":salts_orig}}))
+        cid=cls.dicts_to_CompositionID(solvents=solvents_normalized,salts=salts_normalized,solvent_precision=solvent_precision,salt_decimals=salt_decimals)
+        d={"solvents":solvents_normalized,"salts":salts_normalized,"CompositionID":cid,"solvent_precision":solvent_precision,"salt_decimals":salt_decimals}
+        return cls(**d,specified_from=json.dumps({"by_mass_fraction_and_molality":{"solvents":solvents_orig,"salts":salts_orig}}))
     @classmethod
-    def by_solution_volume(cls,volumes={},densities={}):
+    def by_solution_volume(cls,volumes={},densities={},solvent_precision=default_solvent_precision,salt_decimals=default_salt_decimals):
         solvent_DB=cls.load_solvent_DB()
         salt_DB=cls.load_salt_DB()
         specified_from=json.dumps({"by_solution_volume":{"volumes":volumes.copy(),"densities":densities.copy()}})
@@ -122,6 +132,7 @@ class ElectrolyteComposition:
         total_mass={solution:volumes[solution]*densities[solution] for solution in volumes.keys()} #this is in grams
         for solution in total_mass.keys():
             solution_comp=cls.CompositionID_to_dicts(solution) #solution_comp["solvents"] is m.f.; '' ["salts"] is molal
+            source_solvent_precision=int(solution_comp["solvent_precision"])
             mm_i_m_i=0
             if len(solution_comp["salts"])!=0:
                 for salt in solution_comp["salts"].keys():
@@ -132,9 +143,9 @@ class ElectrolyteComposition:
             solution_total_solvent_mass=total_mass[solution]/(1+mm_i_m_i/1000)
             for solvent in solution_comp["solvents"].keys():
                 if solvent not in solvents_mass:
-                    solvents_mass[solvent]=solution_total_solvent_mass*solution_comp["solvents"][solvent]/100
+                    solvents_mass[solvent]=solution_total_solvent_mass*solution_comp["solvents"][solvent]/source_solvent_precision
                 else:
-                    solvents_mass[solvent]+=solution_total_solvent_mass*solution_comp["solvents"][solvent]/100
+                    solvents_mass[solvent]+=solution_total_solvent_mass*solution_comp["solvents"][solvent]/source_solvent_precision
             if len(solution_comp["salts"])!=0:
                 for salt in solution_comp["salts"].keys():
                     m=solution_comp["salts"][salt]
@@ -143,11 +154,12 @@ class ElectrolyteComposition:
                     else:
                         salts_moles[salt]+=m*solution_total_solvent_mass/1000
         total_solvent_mass=sum(solvents_mass.values())
-        solvents=cls.normalize_solvent_dictionary(solvents_mass)
-        salts=cls.normalize_salt_dictionary({salt:salts_moles[salt]/total_solvent_mass*1000 for salt in salts_moles})
-        cid=cls.dicts_to_CompositionID(solvents=solvents,salts=salts)
+        solvents=cls.normalize_solvent_dictionary(solvents_mass,solvent_precision)
+        salts=cls.normalize_salt_dictionary({salt:salts_moles[salt]/total_solvent_mass*1000 for salt in salts_moles},salt_decimals)
+        cid=cls.dicts_to_CompositionID(solvents=solvents,salts=salts,solvent_precision=solvent_precision,salt_decimals=salt_decimals)
         #total salts into moles each, total solvents into mass each, give molality.
-        return cls(solvents=solvents,salts=salts,specified_from=specified_from,CompositionID=cid)
+        d={"solvents":solvents,"salts":salts,"CompositionID":cid,"solvent_precision":solvent_precision,"salt_decimals":salt_decimals}
+        return cls(**d,specified_from=specified_from)
 
 class AEM_API:
     #TODO: input temperature
