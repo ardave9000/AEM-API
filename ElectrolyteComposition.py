@@ -44,7 +44,8 @@ class ElectrolyteComposition:
     def name_composition(self):
         rep=self.CompositionID.replace("_","")
         return rep.replace("|","")
-
+    def to_solution_volume(self):
+        return
 
     @staticmethod
     def cid_to_parsable(cid):
@@ -127,6 +128,8 @@ class ElectrolyteComposition:
     def by_solution_volume(cls,volumes={},densities={},solvent_precision=default_solvent_precision,salt_decimals=default_salt_decimals):
         solvent_DB=cls.load_solvent_DB()
         salt_DB=cls.load_salt_DB()
+        volumes={k:int(v) for k,v in volumes.items()}
+        densities={k:int(v) for k,v in densities.items()}
         specified_from=json.dumps({"by_solution_volume":{"volumes":volumes.copy(),"densities":densities.copy()}})
         solvents={} #mass fraction
         salts={} #molality
