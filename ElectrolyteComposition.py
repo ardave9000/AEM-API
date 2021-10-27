@@ -89,7 +89,7 @@ class ElectrolyteComposition:
         solvent_mfs=[i for i in ls[1].split(delim2)] #normalize?
         assert len(solvent_names)==len(solvent_mfs), "CompositionID is invalid, different lengths for solvent_names vs solvent_mfs"
         assert 0 not in solvent_mfs, "Zeros not allowed in defining composition" #still caught by normalizing
-        solvent_mfs_precisions=list(set([len(i) for i in solvent_mfs]))
+        solvent_mfs_precisions=list(set([len(i) if len(i)>1 else 2 for i in solvent_mfs]))
         assert len(solvent_mfs_precisions)==1, "Length (precision) of solvent mass fractions must be identical: {}".format(solvent_mfs_precisions)
         #pdb.set_trace()
         solvent_precision=int(10**int(solvent_mfs_precisions[0]))
@@ -129,42 +129,47 @@ class ElectrolyteComposition:
         solvent_DB=cls.load_solvent_DB()
         salt_DB=cls.load_salt_DB()
         volumes={k:int(v) for k,v in volumes.items()}
-        densities={k:int(v) for k,v in densities.items()}
+        densities={k:float(v) for k,v in densities.items()}
         specified_from=json.dumps({"by_solution_volume":{"volumes":volumes.copy(),"densities":densities.copy()}})
         solvents={} #mass fraction
         salts={} #molality
         solvents_mass={}
         salts_moles={}
         assert set(volumes.keys())==set(densities.keys()), "Same keys must be in each of volumes and densities"
-        total_mass={solution:volumes[solution]*densities[solution] for solution in volumes.keys()} #this is in grams
-        for solution in total_mass.keys():
+        total_dose_masses={solution:volumes[solution]/1000*densities[solution] for solution in volumes.keys()} #this is in grams
+        for solution in total_dose_masses.keys():
             solution_comp=cls.CompositionID_to_dicts(solution) #solution_comp["solvents"] is m.f.; '' ["salts"] is molal
             source_solvent_precision=int(solution_comp["solvent_precision"])
-            mm_i_m_i=0
+
+            #BOTTLE LEVEL
+            solution_total_salt_mass=0
             if len(solution_comp["salts"])!=0:
                 for salt in solution_comp["salts"].keys():
                     assert salt in salt_DB.name.values, "Salt proposed that is not in salt_DB, please check! - {}".format(salt)
                     mm=float(salt_DB[salt_DB.name==salt]["molar mass"].iloc[0])
                     m=solution_comp["salts"][salt]
-                    mm_i_m_i += mm*m
-            #print(mm_i_m_i)
-            solution_total_solvent_mass=total_mass[solution]/(1+mm_i_m_i/1000)
-            #print(solution_total_solvent_mass)
+                    solution_total_salt_mass += mm*m #g/mol * molality of single salt = mass of this salt in bottle
+            solution_salt_mass_fraction = solution_total_salt_mass / (solution_total_salt_mass+1000)
+            solution_solvent_mass_fraction = 1-solution_salt_mass_fraction
+
+            #DOSE LEVEL
+            dose_total_solvent_mass=solution_solvent_mass_fraction*total_dose_masses[solution]
             for solvent in solution_comp["solvents"].keys():
                 if solvent not in solvents_mass:
-                    solvents_mass[solvent]=solution_total_solvent_mass*solution_comp["solvents"][solvent]/source_solvent_precision
+                    solvents_mass[solvent]=dose_total_solvent_mass*solution_comp["solvents"][solvent]/source_solvent_precision
                 else:
-                    solvents_mass[solvent]+=solution_total_solvent_mass*solution_comp["solvents"][solvent]/source_solvent_precision
+                    solvents_mass[solvent]+=dose_total_solvent_mass*solution_comp["solvents"][solvent]/source_solvent_precision
             if len(solution_comp["salts"])!=0:
                 for salt in solution_comp["salts"].keys():
                     m=solution_comp["salts"][salt]
                     if salt not in salts_moles:
-                        salts_moles[salt]=m*solution_total_solvent_mass/1000
+                        salts_moles[salt]=m*dose_total_solvent_mass/1000
                     else:
-                        salts_moles[salt]+=m*solution_total_solvent_mass/1000
-        total_solvent_mass=sum(solvents_mass.values())
+                        salts_moles[salt]+=m*dose_total_solvent_mass/1000
+        
+        #EVERYTHING HAS BEEN TOTALED
         solvents=cls.normalize_solvent_dictionary(solvents_mass,solvent_precision)
-        salts=cls.normalize_salt_dictionary({salt:salts_moles[salt]/total_solvent_mass*1000 for salt in salts_moles},salt_decimals)
+        salts=cls.normalize_salt_dictionary({salt:salts_moles[salt]/(sum(list(solvents_mass.values())))*1000 for salt in salts_moles},salt_decimals)
         cid=cls.dicts_to_CompositionID(solvents=solvents,salts=salts,solvent_precision=solvent_precision,salt_decimals=salt_decimals)
         #total salts into moles each, total solvents into mass each, give molality.
         d={"solvents":solvents,"salts":salts,"CompositionID":cid,"solvent_precision":solvent_precision,"salt_decimals":salt_decimals}
@@ -200,6 +205,7 @@ class AEM_API:
         self.data_processed=False
         self.aem_exe_filename="aem-2202.exe"
         self.report_string="Report1 -- Summary of Key Properties"
+        self.surface_tension_string="Report16 -- Surface Tension and pore filling time over salt conc"
         self.tmin=20
         self.tmax=60
         self.salt_offset=0.1 #for ensuring equality in salt molality comparison
@@ -250,7 +256,7 @@ class AEM_API:
         p.communicate(inpb)
         self.run_yet=True
         
-    def process(self):
+    def process(self,surface_tension=False):
         if self.run_yet==False:
             raise ValueError("Run AEM first for this Electrolyte object")
         f = open(self.report_string,'r')
@@ -311,6 +317,36 @@ class AEM_API:
             self.data = {get_key_single(k):pd.DataFrame(find_data_in_txt(v),columns=columns) for k,v in d.items()}
         elif len(self.electrolyte.salts)==2:
             self.data = {get_key_binary(k):pd.DataFrame(find_data_in_txt(v),columns=columns) for k,v in d.items()}
+        
+        if surface_tension:
+            st_columns=["m2","c2","Surface Tension (mN/m)", "Surface Tension / Viscosity (m/s)",
+                "0.02 micron","0.05 micron","0.1 micron","0.2 micron","0.5 micron","1 micron","2 micron","5 micron","10 micron","20 micron"]
+            #do the thing
+            f = open(self.surface_tension_string,'r')
+            lines = f.readlines()
+            d={}
+            for num1,line in enumerate(lines):
+                if "Results" in line:
+                    num2 = num1 + 1
+                    arr = []
+                    reading = True
+                    while(reading==True):
+                        if "Contact Angle" in lines[num2]:
+                            reading = False
+                        else:
+                            arr.append(lines[num2])
+                            num2 += 1
+                    d[line] = arr
+            #print(d.keys())
+            if len(self.electrolyte.salts)==1:
+                self.surface_tension_data = {get_key_single(k):pd.DataFrame(find_data_in_txt(v),columns=st_columns) for k,v in d.items()}
+            elif len(self.electrolyte.salts)==2:
+                self.surface_tension_data = {get_key_binary(k):pd.DataFrame(find_data_in_txt(v),columns=st_columns) for k,v in d.items()}
+            
+            for key in self.data.keys():
+                st=self.surface_tension_data[key]
+                self.data[key]["Surface Tension (mN/m)"]=st["Surface Tension (mN/m)"]
+
         self.data_processed=True
 
 
